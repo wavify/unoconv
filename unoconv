@@ -115,7 +115,7 @@ def find_offices():
             officelibraries = ( 'pyuno.so', 'libpyuno.dylib' )
             officebinaries = ( 'soffice.bin', 'soffice')
             pythonbinaries = ( 'python.bin', 'python' )
-            pythonhomes = ( 'OOoPython.framework/Versions/*/lib/python*', )
+            pythonhomes = ( 'OOoPython.framework/Versions/*/lib/python*', 'LibreOfficePython.framework/Versions/*/lib/python*')
         else:
             officelibraries = ( 'pyuno.so', )
             officebinaries = ( 'soffice.bin', )
@@ -124,10 +124,16 @@ def find_offices():
 
         ### Older LibreOffice/OpenOffice and Windows use basis-link/ or basis/
         libpath = 'error'
-        for basis in ( 'basis-link', 'basis', '' ):
+        for basis in ( 'basis-link', 'basis', '', 'Frameworks' ):
             for lib in officelibraries:
                 if os.path.isfile(realpath(basepath, basis, 'program', lib)):
                     libpath = realpath(basepath, basis, 'program')
+                    officelibrary = realpath(libpath, lib)
+                    info(3, "Found %s in %s" % (lib, libpath))
+                    # Break the inner loop...
+                    break
+                if os.path.isfile(realpath(basepath, basis, '', lib)):
+                    libpath = realpath(basepath, basis, '')
                     officelibrary = realpath(libpath, lib)
                     info(3, "Found %s in %s" % (lib, libpath))
                     # Break the inner loop...
@@ -139,13 +145,19 @@ def find_offices():
             break
         else:
             continue
-
         ### MacOSX have soffice binaries installed in MacOS subdirectory, not program
         unopath = 'error'
-        for basis in ( 'basis-link', 'basis', '' ):
+        for basis in ( 'basis-link', 'basis', '', 'MacOS' ):
             for bin in officebinaries:
                 if os.path.isfile(realpath(basepath, basis, 'program', bin)):
                     unopath = realpath(basepath, basis, 'program')
+                    officebinary = realpath(unopath, bin)
+                    info(3, "Found %s in %s" % (bin, unopath))
+                    # Break the inner loop...
+                    break
+                ## for LibreOffice 4.4.1 in MacOSX
+                if os.path.isfile(realpath(basepath, basis, '', bin)):
+                    unopath = realpath(basepath, basis, '')
                     officebinary = realpath(unopath, bin)
                     info(3, "Found %s in %s" % (bin, unopath))
                     # Break the inner loop...
@@ -160,9 +172,15 @@ def find_offices():
 
         ### Windows does not provide or need a URE/lib directory ?
         urepath = ''
-        for basis in ( 'basis-link', 'basis', '' ):
-            for ure in ( 'ure-link', 'ure', 'URE', '' ):
+        for basis in ( 'basis-link', 'basis', '', 'MacOS' ):
+            for ure in ( 'ure-link', 'ure', 'URE', 'urelibs' ):
                 if os.path.isfile(realpath(basepath, basis, ure, 'lib', 'unorc')):
+                    urepath = realpath(basepath, basis, ure)
+                    info(3, "Found %s in %s" % ('unorc', realpath(urepath, 'lib')))
+                    # Break the inner loop...
+                    break
+                ## for LibreOffice 4.4.1 in MacOSX
+                if os.path.isfile(realpath(basepath, basis, ure, 'pyuno.so')):
                     urepath = realpath(basepath, basis, ure)
                     info(3, "Found %s in %s" % ('unorc', realpath(urepath, 'lib')))
                     # Break the inner loop...
@@ -179,7 +197,6 @@ def find_offices():
                 pythonhome = glob.glob(realpath(libpath, home))[0]
                 info(3, "Found %s in %s" % (home, pythonhome))
                 break
-
 #        if not os.path.isfile(realpath(basepath, program, officebinary)):
 #            continue
 #        info(3, "Found %s in %s" % (officebinary, realpath(basepath, program)))
@@ -210,7 +227,7 @@ def office_environ(office):
     if os.name in ( 'nt', 'os2' ):
         os.environ['URE_BOOTSTRAP'] = 'vnd.sun.star.pathname:' + realpath(office.basepath, 'program', 'fundamental.ini')
     else:
-        os.environ['URE_BOOTSTRAP'] = 'vnd.sun.star.pathname:' + realpath(office.basepath, 'program', 'fundamentalrc')
+        os.environ['URE_BOOTSTRAP'] = 'vnd.sun.star.pathname:' + realpath(office.basepath, 'Resources', 'fundamentalrc')
 
         ### Set LD_LIBRARY_PATH so that "import pyuno" finds libpyuno.so:
         if 'LD_LIBRARY_PATH' in os.environ:
@@ -219,14 +236,16 @@ def office_environ(office):
                                             os.environ['LD_LIBRARY_PATH']
         else:
             os.environ['LD_LIBRARY_PATH'] = office.unopath + os.pathsep + \
-                                            realpath(office.urepath, 'lib')
+                                            realpath(office.urepath, 'lib') + os.pathsep + \
+                                            realpath(office.urepath)
 
     if office.pythonhome:
         for libpath in ( realpath(office.pythonhome, 'lib'),
                          realpath(office.pythonhome, 'lib', 'lib-dynload'),
                          realpath(office.pythonhome, 'lib', 'lib-tk'),
                          realpath(office.pythonhome, 'lib', 'site-packages'),
-                         office.unopath):
+                         office.unopath,
+                         office.urepath):
             sys.path.insert(0, libpath)
     else:
         ### Still needed for system python using LibreOffice UNO bindings
