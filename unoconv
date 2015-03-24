@@ -938,10 +938,12 @@ class Convertor:
                 (outputfn, ext) = os.path.splitext(inputfn)
                 if not op.output:
                     outputfn = outputfn + os.extsep + outputfmt.extension
-                elif len(op.filenames) > 1:
-                    outputfn = op.output + os.extsep + outputfmt.extension
-                else:
+                elif os.path.exists(op.output) and os.path.isdir(op.output) or op.output.endswith(os.path.sep):
                     outputfn = realpath(op.output, os.path.basename(outputfn) + os.extsep + outputfmt.extension)
+                elif len(op.filenames) > 1:
+                    outputfn = op.output + outputfn + os.extsep + outputfmt.extension
+                else:
+                    outputfn = op.output
 
                 outputurl = unohelper.absolutize( self.cwd, unohelper.systemPathToFileUrl(outputfn) )
                 info(1, "Output file: %s" % outputfn)
